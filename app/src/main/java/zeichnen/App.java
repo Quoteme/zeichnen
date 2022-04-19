@@ -3,12 +3,63 @@
  */
 package zeichnen;
 
-public class App {
-    public String getGreeting() {
-        return "Hello World!";
-    }
+import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.Scene;
+import javafx.scene.layout.VBox;
+import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ToolBar;
+import javafx.scene.paint.*;
+import javafx.scene.canvas.*;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 
-    public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
-    }
+public class App extends Application {
+	public static void main(String[] args) {
+		launch();
+	}
+
+	Boolean mousePressed;
+
+	@Override
+	public void start(Stage primaryStage) {
+		primaryStage.setTitle("Zeichnen!");
+
+		// save button
+		Button savebtn = new Button("save");
+		savebtn.setOnAction(new EventHandler<ActionEvent>() {
+			// TODO add saving functionality
+			@Override
+			public void handle(ActionEvent event) {
+				System.out.println("saving!");
+			}
+		});
+		// color picker
+		final ColorPicker colorPicker = new ColorPicker();
+
+		// ToolBar
+		ToolBar toolBar = new ToolBar(
+			savebtn,
+			colorPicker
+		);
+
+		// Canvas
+		final Canvas canvas = new Canvas(250,250);
+		canvas.setOnMousePressed( event -> mousePressed = true );
+		canvas.setOnMouseReleased( event -> mousePressed = false );
+		GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.setFill(Color.BLUE);
+		gc.fillRect(75,75,100,100);
+
+		VBox root = new VBox(
+			toolBar,
+			canvas
+		);
+
+		primaryStage.setScene(new Scene(root, 300, 250));
+		primaryStage.show();
+	}
 }
