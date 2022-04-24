@@ -3,63 +3,200 @@
  */
 package zeichnen;
 
+import java.util.Deque;
+import java.util.LinkedList;
+
 import javafx.application.Application;
+import javafx.geometry.Rectangle2D;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
-import javafx.scene.layout.VBox;
+import javafx.stage.Screen;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
-import javafx.scene.control.ButtonBar;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.ToolBar;
-import javafx.scene.paint.*;
-import javafx.scene.canvas.*;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.scene.effect.GaussianBlur;
 
 public class App extends Application {
-	public static void main(String[] args) {
-		launch();
-	}
+  public static void main(String[] args) {
+    launch();
+  }
 
-	Boolean mousePressed;
+  Double posX = 0.0;
+  Double posY = 0.0;
+  Double pensize = 3.0;
+  Double blurradius = 2.25;
+  Double movementThreshold = 3.0;
+  Canvas canvas = new Canvas(250, 250);;
+  GraphicsContext gc = canvas.getGraphicsContext2D();
+  Camera camera = new Camera(canvas, gc);
+  Deque<Shape> shapes = new LinkedList<>();
+  Deque<Shape> removedShapes = new LinkedList<>();
+  ToolBar toolBar;
+  Button savebtn;
+  Button undobtn;
+  Button redobtn;
+  CheckBox panEnable;
+  HBox zoomBar;
 
-	@Override
-	public void start(Stage primaryStage) {
-		primaryStage.setTitle("Zeichnen!");
+  /**
+   * Undo a drawing
+   */
+  public void undo() {
+    if (this.shapes.size() == 0) {
+      return;
+    }
+    removedShapes.add(shapes.getLast());
+    shapes.removeLast();
+    redraw();
+  }
 
-		// save button
-		Button savebtn = new Button("save");
-		savebtn.setOnAction(new EventHandler<ActionEvent>() {
-			// TODO add saving functionality
-			@Override
-			public void handle(ActionEvent event) {
-				System.out.println("saving!");
-			}
-		});
-		// color picker
-		final ColorPicker colorPicker = new ColorPicker();
+  /**
+   * Redo a drawing
+   */
+  public void redo() {
+    if (this.removedShapes.size() == 0) {
+      return;
+    }
+    shapes.add(removedShapes.getLast());
+    removedShapes.removeLast();
+    redraw();
+  }
 
-		// ToolBar
-		ToolBar toolBar = new ToolBar(
-			savebtn,
-			colorPicker
-		);
+  /**
+   * Redraw add shapes based on zooming and spahes list
+   */
+  public void redraw() {
+    gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+    this.shapes.stream().forEach(s -> s.draw(this.canvas, this.gc, this.camera));
+  }
 
-		// Canvas
-		final Canvas canvas = new Canvas(250,250);
-		canvas.setOnMousePressed( event -> mousePressed = true );
-		canvas.setOnMouseReleased( event -> mousePressed = false );
-		GraphicsContext gc = canvas.getGraphicsContext2D();
-		gc.setFill(Color.BLUE);
-		gc.fillRect(75,75,100,100);
+  public void resize() {
+    Rectangle2D screenBounds = Screen.getPrimary().getBounds();
+    System.out.println(screenBounds);
+    this.canvas.setWidth(screenBounds.getMaxX() - screenBounds.getMinX());
+    this.canvas.setHeight(screenBounds.getMaxY() - screenBounds.getMinY() - this.toolBar.getHeight());
+    redraw();
+  }
 
-		VBox root = new VBox(
-			toolBar,
-			canvas
-		);
+  @Override
+  public void start(Stage primaryStage) {
+    primaryStage.setTitle("Zeichnen!");
+    // primaryStage.addEventFilter(TouchPoint.ANY, e ->
+    // System.out.println("Touchpoint event: " + e.getEventType()));
+    primaryStage.widthProperty().addListener((obs, oldVal, newVal) -> {
+      resize();
+    });
+    primaryStage.heightProperty().addListener((obs, oldVal, newVal) -> {
+      resize();
+    });
+    // ToolBar
+    // Undobutton
+    undobtn = new Button("undo");
+    undobtn.setOnMouseClicked(action -> undo());
+    // Redobutton
+    redobtn = new Button("redo");
+    redobtn.setOnMouseClicked(action -> redo());
+    // save button
+    savebtn = new Button("save");
+    savebtn.setOnAction(new EventHandler<ActionEvent>() {
+      // TODO add saving functionality
+      @Override
+      public void handle(ActionEvent event) {
+        System.out.println("saving!");
+      }
+    });
+    // color picker
+    final ColorPicker colorPicker = new ColorPicker(Color.BLACK);
+    // Movement
+    panEnable = new CheckBox("Pan");
+    // Zoom
+    Button zoominbtn = new Button("+");
+    zoominbtn.setOnMouseClicked(e -> {
+      this.camera.zoomIn();
+      this.redraw();
+    });
+    Button zoomoutbtn = new Button("-");
+    zoomoutbtn.setOnMouseClicked(e -> {
+      this.camera.zoomOut();
+      this.redraw();
+    });
+    zoomBar = new HBox(zoominbtn, zoomoutbtn);
 
-		primaryStage.setScene(new Scene(root, 300, 250));
-		primaryStage.show();
-	}
+    toolBar = new ToolBar(
+        undobtn,
+        redobtn,
+        savebtn,
+        panEnable,
+        colorPicker,
+        zoomBar);
+
+    // Canvas
+    // TODO: add a blur effect
+    canvas.setEffect(new GaussianBlur(blurradius));
+    canvas.setOnMousePressed(event -> {
+      if (panEnable.isSelected()) {
+        camera.startPan(event.getX(), event.getY());
+      }
+      else {
+        this.shapes.add(new Shape(
+          colorPicker.getValue(),
+          new Double[] {
+            event.getX() + camera.getX(),
+            event.getY() + camera.getY()
+          }
+        ));
+        this.removedShapes = new LinkedList<>();
+      }
+    });
+    canvas.setOnMouseDragged(event -> {
+      if (panEnable.isSelected()) {
+        camera.setPan(event.getX(), event.getY());
+        this.redraw();
+      } else {
+        shapes.getLast().addPoint(
+          event.getX() + camera.getX(),
+          event.getY() + camera.getY()
+        );
+        shapes.getLast().drawLast( this.canvas, this.gc, this.camera );
+      }
+    });
+    canvas.setOnMouseReleased(event -> {
+      if (panEnable.isSelected()) {
+        camera.endPan();
+      }
+    });
+    canvas.setOnScroll(e -> {
+      if (panEnable.isSelected()) {
+        this.camera.setX(this.camera.getX() + e.getDeltaX());
+        this.camera.setY(this.camera.getY() + e.getDeltaY());
+        this.redraw();
+      } else {
+        camera.zoomIn(e.getDeltaY()/400);
+        this.redraw();
+      }
+    });
+    // canvas.setOnZoom(event -> System.out.println(event));
+    // canvas.setOnZoomStarted(event -> System.out.println(event));
+    // canvas.setOnZoomFinished(event -> System.out.println(event));
+    // canvas.setOnTouchPressed(event -> System.out.println(event));
+    // canvas.setOnTouchReleased(event -> System.out.println(event));
+    // canvas.setOnTouchMoved(event -> System.out.println(event));
+    // canvas.setOnTouchPressed(e -> System.out.println(e));
+
+    VBox root = new VBox(
+        toolBar,
+        canvas);
+
+    primaryStage.setScene(new Scene(root, 300, 250));
+    primaryStage.show();
+  }
 }

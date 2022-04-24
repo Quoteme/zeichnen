@@ -20,5 +20,15 @@
 			<type>1</type>
 			<location>//home/luca/OneDrive/dev/java/zeichnen/app/src/main/java/zeichnen/App.java</location>
 		</link>
+		<link>
+			<name>src/zeichnen/Camera.java</name>
+			<type>1</type>
+			<location>//home/luca/OneDrive/dev/java/zeichnen/app/src/main/java/zeichnen/Camera.java</location>
+		</link>
+		<link>
+			<name>src/zeichnen/Shape.java</name>
+			<type>1</type>
+			<location>//home/luca/OneDrive/dev/java/zeichnen/app/src/main/java/zeichnen/Shape.java</location>
+		</link>
 	</linkedResources>
 </projectDescription>
